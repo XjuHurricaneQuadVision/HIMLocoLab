@@ -280,11 +280,11 @@ class ObservationsCfg:
     class CriticCfg(PolicyCfg):
         """Observations for critic group."""
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel, scale=2.0, clip=(-100, 100), noise=Unoise(n_min=-0.1, n_max=0.1))
-        base_external_force = ObsTerm(
-            func=mdp.base_external_force,
-            params={"asset_cfg": SceneEntityCfg("robot", body_names="base")},
-            clip=(-100, 100),
-        )
+        # base_external_force = ObsTerm(
+        #     func=mdp.base_external_force,
+        #     params={"asset_cfg": SceneEntityCfg("robot", body_names="base")},
+        #     clip=(-100, 100),
+        # )
         height_scanner = ObsTerm(func=mdp.height_scan_clip,
             scale=5.0,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},

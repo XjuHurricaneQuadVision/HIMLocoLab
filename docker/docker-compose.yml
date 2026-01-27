@@ -41,14 +41,17 @@ services:
         target: ${DOCKER_USER_HOME}/.nv/ComputeCache
     # -------------------- 代码映射 --------------------
       - type: bind
-        source: ../source
-        target: ${DOCKER_ISAACLAB_PATH}/source
+        source: ../source/himloco_lab
+        target: ${DOCKER_ISAACLAB_PATH}/source/himloco_lab
       - type: bind
         source: ../scripts
         target: ${DOCKER_ISAACLAB_PATH}/scripts
       - type: bind
         source: ../logs
         target: ${DOCKER_ISAACLAB_PATH}/logs
+      - type: bind
+        source: ../unitree_ros
+        target: /workspace/unitree_ros
     # -------------------- 相关数据 --------------------   
       - type: volume
         source: isaac-data

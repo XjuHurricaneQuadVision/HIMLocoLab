@@ -19,7 +19,7 @@ from isaaclab.utils import configclass
 from himloco_lab.assets import unitree_actuators
 
 UNITREE_MODEL_DIR = "path/to/unitree_model"  # Replace with the actual path to your unitree_model directory
-UNITREE_ROS_DIR = "path/to/unitree_ros"  # Replace with the actual path to your unitree_ros package
+UNITREE_ROS_DIR = "/workspace/unitree_ros"  # Mapped from host: himloco_lab/unitree_ros
 
 @configclass
 class UnitreeArticulationCfg(ArticulationCfg):
