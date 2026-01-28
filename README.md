@@ -58,7 +58,7 @@ git clone --recursive https://github.com/hyyyyyyz/himloco_lab.git
 
 ### 2. 构建训练环境
 
-#### 使用docker构建训练环境 Isaac Lab 以及相应依赖
+#### 推荐使用docker构建训练环境 Isaac Lab 以及相应依赖
 
 进入himloco_lab项目根目录下，执行如下命令：
 
@@ -73,42 +73,14 @@ sudo chmod +x docker/build.sh
 ./docker/build.sh -c
 ```
 
-## 以下文档维护中........
-
-
-
-### 4. 下载 Unitree 机器人描述文件
-
-  *方法 1: 使用 USD 文件*
-  - 从 [unitree_model](https://huggingface.co/datasets/unitreerobotics/unitree_model/tree/main) 下载 unitree USD 文件，保持文件夹结构
-    ```bash
-    git clone https://huggingface.co/datasets/unitreerobotics/unitree_model
-    ```
-  - 配置 `UNITREE_MODEL_DIR` 在 `source/himloco_lab/himloco_lab/assets/robots/unitree.py` 中。
-
-    ```bash
-    UNITREE_MODEL_DIR = "</home/user/projects/unitree_usd>"
-    ```
-
-  *方法 2: 使用 URDF 文件 [推荐]* 仅支持 Isaacsim >= 5.0
-  -  从 [unitree_ros](https://github.com/unitreerobotics/unitree_ros) 下载 unitree 机器人 urdf 文件
-      ```
-      git clone https://github.com/unitreerobotics/unitree_ros.git
-      ```
-  - 配置 `UNITREE_ROS_DIR` 在 `source/himloco_lab/himloco_lab/assets/robots/unitree.py` 中。
-    ```bash
-    UNITREE_ROS_DIR = "</home/user/projects/unitree_ros/unitree_ros>"
-    ```
-  - [可选]: 如果要使用 urdf/usd 文件，修改 *robot_cfg.spawn*
-
 ## 快速开始
 
 ### 训练策略
 
-在 Unitree Go2 上训练 HimLoco 策略：
+在 Unitree Go2 上训练 HIMLoco 策略：
 
 ```bash
-python scripts/himloco_rsl_rl/train.py --task Unitree-Go2-Velocity --headless
+python scripts/himloco_rsl_rl/train.py --task Unitree-Go2-Velocity
 ```
 
 ### 推理和播放
@@ -153,64 +125,19 @@ python scripts/himloco_rsl_rl/play.py --task Unitree-Go2-Velocity-Play
 模型训练完成后，需要在 Mujoco 中对训练好的策略进行模拟验证（Sim2Sim），测试模型性能。
 然后才能进行真实机器人部署（Sim2Real）。
 
-### 环境配置
-
-```bash
-# 安装依赖库
-sudo apt install -y libyaml-cpp-dev libboost-all-dev libeigen3-dev libspdlog-dev libfmt-dev
-
-# 安装 unitree_sdk2
-git clone git@github.com:unitreerobotics/unitree_sdk2.git
-cd unitree_sdk2
-mkdir build && cd build
-cmake .. -DBUILD_EXAMPLES=OFF # 安装到 /usr/local 目录
-sudo make install
-# Compile the robot_controller
-cd himloco_lab/deploy/robots/go2 
-mkdir build && cd build
-cmake .. && make
-```
+## 以下文档还在维护中............
 
 ### Sim2Sim
 
-安装 [unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco?tab=readme-ov-file#installation).
-
-- Set the `robot` at `/simulate/config.yaml` to go2
-- Set `domain_id` to 0
-- Set `enable_elastic_hand` to 1
-- Set `use_joystck` to 1.
-
-
-启动 Mujoco 模拟环境
-```bash
-cd unitree_mujoco/simulate/build
-./unitree_mujoco
-```
-
-启动控制器：
-
-```bash
-cd himloco_lab/deploy/robots/go2/build
-./go2_ctrl
-```
-
 ### Sim2Real
 
-可以使用此程序直接控制真实机器人，但需要确保已关闭机器人上的运控程序。
 
-```bash
-./go2_ctrl --network eth0 # eth0 is the network interface name.
-```
-
-## 📝 TODO List
-- \[x\] deploy on real robot and mujoco
-- \[x\] deploy on jetson
-- \[ \] migrate to latest rsl_rl version
 
 
 ## 🔗 参考资源
 
 - [HimLoco](https://github.com/RoboLoco/HimLoco)
+- [himloco_lab](https://github.com/IsaacZH/himloco_lab)
 - [Isaac Lab](https://isaac-sim.github.io/IsaacLab/)
 - [unitree_rl_lab](https://github.com/unitreerobotics/unitree_rl_lab)
 
