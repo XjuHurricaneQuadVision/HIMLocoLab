@@ -3,11 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Configuration for Unitree robots.
-
-Reference: https://github.com/unitreerobotics/unitree_ros
-"""
-
 import os
 
 import isaaclab.sim as sim_utils

@@ -7,7 +7,6 @@ from isaaclab.actuators import IdealPDActuator, IdealPDActuatorCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.types import ArticulationActions
 
-
 class UnitreeActuator(IdealPDActuator):
     """Unitree actuator class that implements a torque-speed curve for the actuators.
 
