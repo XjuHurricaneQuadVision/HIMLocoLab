@@ -103,8 +103,8 @@ UNITREE_GO2_CFG = UnitreeArticulationCfg(
     actuators={
         "GO2HV": unitree_actuators.UnitreeActuatorCfg_Go2HV(
             joint_names_expr=[".*"],
-            stiffness=25.0,
-            damping=0.5,
+            stiffness=30.0,
+            damping=0.8,
             friction=0.01,
         ),
     },

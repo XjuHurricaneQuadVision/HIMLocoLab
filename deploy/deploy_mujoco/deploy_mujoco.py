@@ -10,27 +10,37 @@ import os
 
 # 项目根目录
 HIMLOCO_ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+rl_enabled = False
+rl_just_enabled = False
 
-def get_gravity_orientation(quaternion):
-    qw = quaternion[0]
-    qx = quaternion[1]
-    qy = quaternion[2]
-    qz = quaternion[3]
-
-    gravity_orientation = np.zeros(3)
-
-    gravity_orientation[0] = 2 * (-qz * qx + qw * qy)
-    gravity_orientation[1] = -2 * (qz * qy + qw * qx)
-    gravity_orientation[2] = 1 - 2 * (qw * qw + qz * qz)
-
-    return gravity_orientation
-
+def get_projected_gravity(quat_wxyz):
+    """ 计算机体系下的重力方向 """
+    rot = np.zeros(9, dtype=np.float64)
+    mujoco.mju_quat2Mat(rot, quat_wxyz.astype(np.float64))
+    rot = rot.reshape(3, 3)
+    gravity_world = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+    return (rot.T @ gravity_world).astype(np.float32)
 
 def pd_control(target_q, q, kp, target_dq, dq, kd):
     """PD 控制计算"""
     return (target_q - q) * kp + (target_dq - dq) * kd
 
-rl_enabled = False
+def map_joint_states_to_train_order(qj_sim, dqj_sim, joint_mapping, num_actions):
+    """ 关节状态映射 """
+    qj = np.zeros(num_actions, dtype=np.float32)
+    dqj = np.zeros(num_actions, dtype=np.float32)
+    for i in range(num_actions):
+        sim_idx = joint_mapping[i]
+        qj[i] = qj_sim[sim_idx]
+        dqj[i] = dqj_sim[sim_idx]
+    return qj, dqj
+
+def omega_world_to_body(quat_wxyz, omega_world):
+    """ 将世界系角速度转换到机体系 """
+    rot = np.zeros(9, dtype=np.float64)
+    mujoco.mju_quat2Mat(rot, quat_wxyz.astype(np.float64))
+    rot = rot.reshape(3, 3)
+    return rot.T @ omega_world
 
 if __name__ == "__main__":
 
@@ -46,6 +56,7 @@ if __name__ == "__main__":
 
         kps = np.array(config["kps"], dtype=np.float32)
         kds = np.array(config["kds"], dtype=np.float32)
+        torque_limit = np.array(config["torque_limits"], dtype=np.float32)
 
         default_angles = np.array(config["default_angles"], dtype=np.float32)
         joint_mapping = config["joint_mapping"]
@@ -91,10 +102,11 @@ if __name__ == "__main__":
 
     # 键盘回调函数
     def key_callback(keycode):
-        global rl_enabled
+        global rl_enabled, rl_just_enabled
         if keycode == ord('1'):
             if not rl_enabled:
                 rl_enabled = True
+                rl_just_enabled = True
                 print(" RL 策略已启动！")
 
     with mujoco.viewer.launch_passive(m, d, key_callback=key_callback) as viewer:
@@ -105,22 +117,12 @@ if __name__ == "__main__":
             # 读取当前 MuJoCo 状态并通过映射转换为训练顺序
             qj_sim = d.qpos[7:]
             dqj_sim = d.qvel[6:]
-            qj = np.zeros(num_actions, dtype=np.float32)
-            dqj = np.zeros(num_actions, dtype=np.float32)
-            for i in range(num_actions):
-                sim_idx = joint_mapping[i]
-                qj[i] = qj_sim[sim_idx]
-                dqj[i] = dqj_sim[sim_idx]
+            qj, dqj = map_joint_states_to_train_order(qj_sim, dqj_sim, joint_mapping, num_actions)
 
-            # 计算目标关节位置
-            target_dof_pos_sim = np.zeros(num_actions, dtype=np.float32)
-            for i in range(num_actions):
-                sim_idx = joint_mapping[i]
-                target_dof_pos_sim[sim_idx] = target_dof_pos[i]
-
-            tau = pd_control(target_dof_pos_sim, qj_sim, kps, np.zeros_like(kds), dqj_sim, kds)
+            tau = pd_control(target_dof_pos, qj, kps, np.zeros_like(kds), dqj, kds)
+            tau = np.clip(tau, -torque_limit, torque_limit) # 避免力矩超出限制
             d.ctrl[:] = tau
-            # 可以在 mj_step 之前或之后应用控制信号
+            
             mujoco.mj_step(m, d)
 
             counter += 1
@@ -129,14 +131,19 @@ if __name__ == "__main__":
 
                 # 建立观测
                 quat = d.qpos[3:7]
-                omega = d.qvel[3:6]
+                omega_world = d.qvel[3:6]
+
+                qj_sim = d.qpos[7:]
+                dqj_sim = d.qvel[6:]
+                qj, dqj = map_joint_states_to_train_order(qj_sim, dqj_sim, joint_mapping, num_actions)
 
                 qj_obs = (qj - default_angles) * dof_pos_scale
                 dqj_obs = dqj * dof_vel_scale
-                gravity_orientation = get_gravity_orientation(quat)
-                omega = omega * ang_vel_scale
+                gravity_orientation = get_projected_gravity(quat)
+                omega_body = omega_world_to_body(quat, omega_world)
+                omega = omega_body * ang_vel_scale
 
-                obs[:3] = cmd * cmd_scale * max_cmd
+                obs[:3] = cmd
                 obs[3:6] = omega
                 obs[6:9] = gravity_orientation
                 obs[9 : 9 + num_actions] = qj_obs
@@ -149,12 +156,17 @@ if __name__ == "__main__":
 
                 # 只有在 RL 启用时才进行策略推理
                 if rl_enabled:
+                    if rl_just_enabled:
+                        # 刚切换到 RL：用当前观测填满历史，避免编码器初始异常
+                        obs_history[:] = obs
+                        rl_just_enabled = False
                     # 展平历史观测为一维向量 (6 * 45 = 270)
                     obs_history_flat = obs_history.flatten()
                     obs_tensor = torch.from_numpy(obs_history_flat).unsqueeze(0)
 
                     # 策略推理
                     action = policy(obs_tensor).detach().numpy().squeeze()
+                    action = np.clip(action, -1.0, 1.0)
                     # 把动作转换为目标关节位置
                     target_dof_pos = action * action_scale + default_angles
                 else:

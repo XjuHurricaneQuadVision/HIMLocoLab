@@ -117,6 +117,8 @@ class UnitreeActuatorCfg_Go2HV(UnitreeActuatorCfg):
     Y2 = 23.4
 
 
+
+
 @configclass
 class UnitreeActuatorCfg_N7520_14p3(UnitreeActuatorCfg):
     # Decimal point cannot be used as variable name, use `p` instead

@@ -153,8 +153,8 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-            "static_friction_range": (0.2, 1.25),
-            "dynamic_friction_range": (0.2, 1.25),
+            "static_friction_range": (0.3, 1.5),
+            "dynamic_friction_range": (0.3, 1.5),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,  # 摩擦配置种类数量
         },
@@ -166,7 +166,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "mass_distribution_params": (-1.0, 2.0),
+            "mass_distribution_params": (-2.0, 4.0),
             "operation": "add",
         },
     )
@@ -177,7 +177,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.05, 0.05)},
+            "com_range": {"x": (-0.08, 0.08), "y": (-0.08, 0.08), "z": (-0.06, 0.06)},
         },
     )
 
@@ -219,8 +219,8 @@ class EventCfg:
         interval_range_s=(0.02, 0.02),  # 每 0.02s 每步
         params={
             "period_step": 8,   # 每 8 步施加一次力
-            "force_range": (-30.0, 30.0),
-            "torque_range": (-0.0, 0.0),
+            "force_range": (-60.0, 60.0),
+            "torque_range": (-6.0, 6.0),
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
         },
     )
@@ -229,9 +229,9 @@ class EventCfg:
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(16.0, 16.0),  # 每 16s 推一次
+        interval_range_s=(8.0, 8.0),  # 每 8s 推一次
         params={
-            "velocity_range": {"x": (-1, 1), "y": (-1, 1)},
+            "velocity_range": {"x": (-1.5, 1.5), "y": (-1.5, 1.5)},
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
         },
     )
@@ -277,10 +277,10 @@ class ObservationsCfg:
 
         # 观测配置，Actor 网络的输入
         velocity_commands = ObsTerm(func=mdp.generated_commands, clip=(-100, 100), params={"command_name": "base_velocity"})
-        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.25, clip=(-100, 100), noise=Unoise(n_min=-0.2, n_max=0.2))
-        projected_gravity = ObsTerm(func=mdp.projected_gravity, clip=(-100, 100), noise=Unoise(n_min=-0.05, n_max=0.05))
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, clip=(-100, 100), noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, clip=(-100, 100), noise=Unoise(n_min=-1.5, n_max=1.5))
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.25, clip=(-100, 100), noise=Unoise(n_min=-0.3, n_max=0.3))
+        projected_gravity = ObsTerm(func=mdp.projected_gravity, clip=(-100, 100), noise=Unoise(n_min=-0.07, n_max=0.07))
+        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, clip=(-100, 100), noise=Unoise(n_min=-0.02, n_max=0.02))
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, clip=(-100, 100), noise=Unoise(n_min=-2.0, n_max=2.0))
         last_action = ObsTerm(func=mdp.last_action, clip=(-100, 100))
 
         def __post_init__(self):
@@ -294,12 +294,12 @@ class ObservationsCfg:
         """Observations for critic group."""
 
         # Critic 观测（特权信息）
-        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, scale=2.0, clip=(-100, 100), noise=Unoise(n_min=-0.1, n_max=0.1))
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel, scale=2.0, clip=(-100, 100), noise=Unoise(n_min=-0.15, n_max=0.15))
         height_scanner = ObsTerm(func=mdp.height_scan_clip,
             scale=5.0,
             params={"sensor_cfg": SceneEntityCfg("height_scanner")},
             clip=(-100, 100),
-            noise=Unoise(n_min=-0.1, n_max=0.1)
+            noise=Unoise(n_min=-0.15, n_max=0.15)
         )
         # base_external_force = ObsTerm(
         #     func=mdp.base_external_force,
@@ -371,8 +371,8 @@ class RewardsCfg:
         }
     )
 
-    # joint_torques = RewTerm(func=mdp.joint_torques_l2, weight=-2e-4)  # 减少关节扭矩
-    # joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.001)     # 惩罚关节速度
+    joint_torques = RewTerm(func=mdp.joint_torques_l2, weight=-2e-4)  # 减少关节扭矩
+    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.001)     # 惩罚关节速度
     
     # # 惩罚身体接触地面
     # head_undesired_contacts = RewTerm(
@@ -385,14 +385,14 @@ class RewardsCfg:
     # )
     
 
-    # other_undesired_contacts = RewTerm(
-    #     func=mdp.undesired_contacts,
-    #     weight=-0.01,
-    #     params={
-    #         "threshold": 0.3,
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
-    #     },
-    # )
+    other_undesired_contacts = RewTerm(
+        func=mdp.undesired_contacts,
+        weight=-0.01,
+        params={
+            "threshold": 0.3,
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
+        },
+    )
 
     # is_terminated = RewTerm(func=mdp.is_terminated, weight=-5.0)
     # joint_pos_limits = RewTerm(func=mdp.joint_pos_limits, weight=-5.0)
@@ -445,14 +445,14 @@ class RewardsCfg:
     #     weight=-1.0,
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot")},
     # )
-    # feet_slide = RewTerm(
-    #     func=mdp.feet_slide,
-    #     weight=-0.1,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-    #     },
-    # )
+    feet_slide = RewTerm(
+        func=mdp.feet_slide,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+        },
+    )
     # feet_gait = RewTerm(
     #     func=mdp.feet_gait,
     #     weight=1.0,
