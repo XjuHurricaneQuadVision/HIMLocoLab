@@ -65,6 +65,10 @@ if __name__ == "__main__":
     target_dof_pos = default_angles.copy()
     obs = np.zeros(num_obs, dtype=np.float32)
 
+    # 观测历史缓冲区 (history_length + 1 = 6 帧)
+    history_length = 5
+    obs_history = np.zeros((history_length + 1, num_obs), dtype=np.float32)
+
     counter = 0
 
     # 加载机器人模型
@@ -105,7 +109,15 @@ if __name__ == "__main__":
                 obs[9 : 9 + num_actions] = qj
                 obs[9 + num_actions : 9 + 2 * num_actions] = dqj
                 obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
-                obs_tensor = torch.from_numpy(obs).unsqueeze(0)
+
+                # 更新观测历史：向前滚动，最新观测放在最后
+                obs_history[:-1] = obs_history[1:]
+                obs_history[-1] = obs
+
+                # 展平历史观测为一维向量 (6 * 45 = 270)
+                obs_history_flat = obs_history.flatten()
+                obs_tensor = torch.from_numpy(obs_history_flat).unsqueeze(0)
+
                 # 策略推理
                 action = policy(obs_tensor).detach().numpy().squeeze()
                 # 把动作转换为目标关节位置

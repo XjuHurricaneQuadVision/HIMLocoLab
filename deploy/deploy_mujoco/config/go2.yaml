@@ -1,6 +1,6 @@
 # Go2 deploy to sim config
-policy_path: "{HIMLOCO_ROOT_DIR}/deploy/pre_train/go2/motion.pt"
-xml_path: "{HIMLOCO_ROOT_DIR}/legged_gym/resources/robots/go2/scene.xml"
+policy_path: "{HIMLOCO_ROOT_DIR}/deploy/models/policy.pt"
+xml_path: "{HIMLOCO_ROOT_DIR}/source/himloco_lab/robot_description/go2_description/scene.xml"
 
 # 模拟总时间
 simulation_duration: 60.0
@@ -10,8 +10,8 @@ simulation_dt: 0.002
 control_decimation: 10
 
 # PD控制增益 (来自 hurricane_walk)
-kps: [40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0]
-kds: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+kps: [25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0]
+kds: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
 # 默认关节位置 (hurricane_walk 站立姿态)
 # 训练顺序: [FL, FR, RL, RR], 每条腿 [hip, thigh, calf]
