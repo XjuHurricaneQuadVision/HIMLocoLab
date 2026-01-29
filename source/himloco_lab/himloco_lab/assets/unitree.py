@@ -87,7 +87,7 @@ class UnitreeUrdfFileCfg(sim_utils.UrdfFileCfg):
 UNITREE_GO2_CFG = UnitreeArticulationCfg(
     # Isaac Sim v5.1 后可以直接读取 URDF ，若想使用 USD 文件，则使用函数 UnitreeUsdFileCfg
     spawn=UnitreeUrdfFileCfg(
-        asset_path="source/himloco_lab/himloco_lab/robots/go2_description/urdf/go2_description.urdf",
+        asset_path="source/himloco_lab/robot_description/go2_description/urdf/go2_description.urdf",
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.4),
