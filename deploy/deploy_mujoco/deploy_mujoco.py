@@ -30,6 +30,7 @@ def pd_control(target_q, q, kp, target_dq, dq, kd):
     """PD 控制计算"""
     return (target_q - q) * kp + (target_dq - dq) * kd
 
+rl_enabled = False
 
 if __name__ == "__main__":
 
@@ -47,6 +48,7 @@ if __name__ == "__main__":
         kds = np.array(config["kds"], dtype=np.float32)
 
         default_angles = np.array(config["default_angles"], dtype=np.float32)
+        joint_mapping = config["joint_mapping"]
 
         ang_vel_scale = config["ang_vel_scale"]
         dof_pos_scale = config["dof_pos_scale"]
@@ -76,14 +78,47 @@ if __name__ == "__main__":
     d = mujoco.MjData(m)
     m.opt.timestep = simulation_dt
 
+    # 设置初始关节位置
+    default_angles_sim = np.zeros(num_actions, dtype=np.float32)
+    for i in range(num_actions):
+        sim_idx = joint_mapping[i]
+        default_angles_sim[sim_idx] = default_angles[i]
+    d.qpos[7:7+num_actions] = default_angles_sim
+    mujoco.mj_forward(m, d)  # 更新物理状态
+
     # 加载策略
     policy = torch.jit.load(policy_path)
 
-    with mujoco.viewer.launch_passive(m, d) as viewer:
+    # 键盘回调函数
+    def key_callback(keycode):
+        global rl_enabled
+        if keycode == ord('1'):
+            if not rl_enabled:
+                rl_enabled = True
+                print(" RL 策略已启动！")
+
+    with mujoco.viewer.launch_passive(m, d, key_callback=key_callback) as viewer:
         start = time.time()
         while viewer.is_running() and time.time() - start < simulation_duration:
             step_start = time.time()
-            tau = pd_control(target_dof_pos, d.qpos[7:], kps, np.zeros_like(kds), d.qvel[6:], kds)
+
+            # 读取当前 MuJoCo 状态并通过映射转换为训练顺序
+            qj_sim = d.qpos[7:]
+            dqj_sim = d.qvel[6:]
+            qj = np.zeros(num_actions, dtype=np.float32)
+            dqj = np.zeros(num_actions, dtype=np.float32)
+            for i in range(num_actions):
+                sim_idx = joint_mapping[i]
+                qj[i] = qj_sim[sim_idx]
+                dqj[i] = dqj_sim[sim_idx]
+
+            # 计算目标关节位置
+            target_dof_pos_sim = np.zeros(num_actions, dtype=np.float32)
+            for i in range(num_actions):
+                sim_idx = joint_mapping[i]
+                target_dof_pos_sim[sim_idx] = target_dof_pos[i]
+
+            tau = pd_control(target_dof_pos_sim, qj_sim, kps, np.zeros_like(kds), dqj_sim, kds)
             d.ctrl[:] = tau
             # 可以在 mj_step 之前或之后应用控制信号
             mujoco.mj_step(m, d)
@@ -93,35 +128,39 @@ if __name__ == "__main__":
                 # 应用控制信号
 
                 # 建立观测
-                qj = d.qpos[7:]
-                dqj = d.qvel[6:]
                 quat = d.qpos[3:7]
                 omega = d.qvel[3:6]
 
-                qj = (qj - default_angles) * dof_pos_scale
-                dqj = dqj * dof_vel_scale
+                qj_obs = (qj - default_angles) * dof_pos_scale
+                dqj_obs = dqj * dof_vel_scale
                 gravity_orientation = get_gravity_orientation(quat)
                 omega = omega * ang_vel_scale
 
                 obs[:3] = cmd * cmd_scale * max_cmd
                 obs[3:6] = omega
                 obs[6:9] = gravity_orientation
-                obs[9 : 9 + num_actions] = qj
-                obs[9 + num_actions : 9 + 2 * num_actions] = dqj
+                obs[9 : 9 + num_actions] = qj_obs
+                obs[9 + num_actions : 9 + 2 * num_actions] = dqj_obs
                 obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
 
-                # 更新观测历史：向前滚动，最新观测放在最后
-                obs_history[:-1] = obs_history[1:]
-                obs_history[-1] = obs
+                # 更新观测历史
+                obs_history[1:] = obs_history[:-1]
+                obs_history[0] = obs
 
-                # 展平历史观测为一维向量 (6 * 45 = 270)
-                obs_history_flat = obs_history.flatten()
-                obs_tensor = torch.from_numpy(obs_history_flat).unsqueeze(0)
+                # 只有在 RL 启用时才进行策略推理
+                if rl_enabled:
+                    # 展平历史观测为一维向量 (6 * 45 = 270)
+                    obs_history_flat = obs_history.flatten()
+                    obs_tensor = torch.from_numpy(obs_history_flat).unsqueeze(0)
 
-                # 策略推理
-                action = policy(obs_tensor).detach().numpy().squeeze()
-                # 把动作转换为目标关节位置
-                target_dof_pos = action * action_scale + default_angles
+                    # 策略推理
+                    action = policy(obs_tensor).detach().numpy().squeeze()
+                    # 把动作转换为目标关节位置
+                    target_dof_pos = action * action_scale + default_angles
+                else:
+                    # RL 未启用时，保持默认姿态
+                    target_dof_pos = default_angles.copy()
+                    action = np.zeros(num_actions, dtype=np.float32)
 
             # 获取物理状态的变化，应用外部扰动，从GUI更新仿真参数
             viewer.sync()
