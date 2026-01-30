@@ -27,7 +27,7 @@ void init_fsm_state()
 
 int main(int argc, char** argv)
 {
-    // Load parameters
+    // 加载参数文件 config.yaml
     auto vm = param::helper(argc, argv);
 
     std::cout << " --- Unitree Robotics --- \n";
