@@ -53,14 +53,14 @@ himloco_lab/
 本仓库使用git submodule 维护子仓库isaaclab，故如需使用docker构建训练环境，按照如下克隆本仓库：
 
 ```bash
-git clone --recursive https://github.com/hyyyyyyz/himloco_lab.git
+git clone --recursive https://github.com/hyyyyyyz/HIMLocoLab.git
 ```
 
 ### 2. 构建训练环境
 
 #### 推荐使用docker构建训练环境 Isaac Lab 以及相应依赖
 
-进入himloco_lab项目根目录下，执行如下命令：
+进入HIMLocoLab项目根目录下，执行如下命令：
 
 ```
 sudo chmod +x docker/build.sh
