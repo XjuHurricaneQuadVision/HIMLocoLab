@@ -122,13 +122,13 @@ UNITREE_GO2_CRAWL_CFG = UnitreeArticulationCfg(
         asset_path="source/himlocolab/robot_description/go2_description/urdf/go2_description.urdf",
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.28),
+        pos=(0.0, 0.0, 0.32),
         joint_pos={
             ".*R_hip_joint": -0.15,
             ".*L_hip_joint": 0.15,
-            "F[L,R]_thigh_joint": 1.3,
-            "R[L,R]_thigh_joint": 1.5,
-            ".*_calf_joint": -2.4,
+            "F[L,R]_thigh_joint": 1.0,
+            "R[L,R]_thigh_joint": 1.2,
+            ".*_calf_joint": -2.0,
         },
         joint_vel={".*": 0.0},
     ),

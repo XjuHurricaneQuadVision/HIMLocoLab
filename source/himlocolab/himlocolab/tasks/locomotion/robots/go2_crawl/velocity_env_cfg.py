@@ -346,9 +346,9 @@ class RewardsCfg:
     # 保持机身高度
     base_height_l2 = RewTerm(
         func=mdp.base_height,
-        weight=-5.0,
+        weight=-8.0,
         params={
-            "target_height": 0.18,
+            "target_height": 0.22,
             "sensor_cfg": SceneEntityCfg("base_height_scanner"),
         },
     )
@@ -367,9 +367,9 @@ class RewardsCfg:
     # 不期望的接触
     other_undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
-        weight=-0.01,
+        weight=-2.0,
         params={
-            "threshold": 0.3,
+            "threshold": 1.0,
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
         },
     )
@@ -406,9 +406,9 @@ class RewardsCfg:
     # 步态模式鼓励步态
     feet_gait = RewTerm(
         func=mdp.feet_gait,
-        weight=1.5,
+        weight=1.0,
         params={
-            "period": 0.6,  # 匍匐步态周期稍快（从0.8降到0.6）
+            "period": 0.6,
             "offset": [0.0, 0.5, 0.5, 0.0],  # 对角步态（LF, RF, LH, RH）
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
             "threshold": 0.3,
@@ -416,14 +416,22 @@ class RewardsCfg:
         },
     )
 
-    # 鼓励足部着地
-    feet_air_time = RewTerm(
-        func=mdp.feet_air_time,
-        weight=0.5,
+    # 足端必须接触地面
+    feet_contact = RewTerm(
+        func=mdp.desired_contacts,
+        weight=-2.0,
         params={
-            "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-            "threshold": 0.1,  # 最小腾空时间
+            "threshold": 1.0,
+        },
+    )
+
+    # 惩罚关节位置偏差
+    joint_deviation = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.2,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
         },
     )
 
