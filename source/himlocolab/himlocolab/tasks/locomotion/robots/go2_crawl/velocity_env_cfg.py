@@ -316,7 +316,7 @@ class RewardsCfg:
     # 跟踪线速度
     track_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_exp,
-        weight=2.0,
+        weight=3.0,
         params={
             "command_name": "base_velocity",
             "std": math.sqrt(0.25)
@@ -325,10 +325,10 @@ class RewardsCfg:
 
     # 跟踪角速度
     track_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, 
-        weight=0.5, 
+        func=mdp.track_ang_vel_z_exp,
+        weight=0.5,
         params={
-            "command_name": "base_velocity", 
+            "command_name": "base_velocity",
             "std": math.sqrt(0.25)
         },
     )
@@ -336,9 +336,9 @@ class RewardsCfg:
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)   # 保持机身水平
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0)    # 惩罚翻滚/俯仰
-    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)  # 惩罚关节加速度
-    joint_torques = RewTerm(func=mdp.joint_torques_l2, weight=-2e-4)  # 减少关节扭矩
-    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.001)     # 惩罚关节速度
+    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-1.0e-7)  # 惩罚关节加速度
+    joint_torques = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)  # 惩罚关节扭矩
+    joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.0003)     # 惩罚关节速度
     energy = RewTerm(func=mdp.energy, weight=-2e-5)   # 节能
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)    # 惩罚动作变化率
     smoothness = RewTerm(func=mdp.smoothness, weight=-0.01)
@@ -348,7 +348,7 @@ class RewardsCfg:
         func=mdp.base_height,
         weight=-5.0,
         params={
-            "target_height": 0.12,
+            "target_height": 0.18,
             "sensor_cfg": SceneEntityCfg("base_height_scanner"),
         },
     )
@@ -403,16 +403,27 @@ class RewardsCfg:
         },
     )
 
-    # 步态模式
+    # 步态模式鼓励步态
     feet_gait = RewTerm(
         func=mdp.feet_gait,
-        weight=0.5,
+        weight=1.5,
         params={
-            "period": 0.8,  
+            "period": 0.6,  # 匍匐步态周期稍快（从0.8降到0.6）
             "offset": [0.0, 0.5, 0.5, 0.0],  # 对角步态（LF, RF, LH, RH）
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
             "threshold": 0.3,
             "command_name": "base_velocity",
+        },
+    )
+
+    # 鼓励足部着地
+    feet_air_time = RewTerm(
+        func=mdp.feet_air_time,
+        weight=0.5,
+        params={
+            "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+            "threshold": 0.1,  # 最小腾空时间
         },
     )
 
@@ -423,10 +434,10 @@ class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)   # 超时终止
 
-    # 机身接触地面（修正阈值防止侧躺）
+    # 机身接触地面
     base_contact = DoneTerm(
         func=mdp.illegal_contact,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 10.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 5.0},  # 从10.0降到5.0
     )
 
     # 走出地形边界
