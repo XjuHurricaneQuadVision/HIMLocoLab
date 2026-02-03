@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     // Get joystick reference
     auto& joy = FSMState::lowstate->joystick;
 
-    // Initialize FSM
+    // 初始化 FSM，初始状态是 Passive
     auto fsm = std::make_unique<CtrlFSM>(new State_Passive(FSMMode::Passive));
     
     // Transition from Passive to FixStand: Keyboard [Z] OR Joystick [L2 + A]
