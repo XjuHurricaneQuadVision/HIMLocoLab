@@ -336,10 +336,7 @@ class RewardsCfg:
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)   # 保持机身水平
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-2.0)    # 惩罚翻滚/俯仰
-    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-1.0e-7)  # 惩罚关节加速度
-    joint_torques = RewTerm(func=mdp.joint_torques_l2, weight=-1e-4)  # 惩罚关节扭矩
     joint_vel = RewTerm(func=mdp.joint_vel_l2, weight=-0.0003)     # 惩罚关节速度
-    energy = RewTerm(func=mdp.energy, weight=-2e-5)   # 节能
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)    # 惩罚动作变化率
     smoothness = RewTerm(func=mdp.smoothness, weight=-0.01)
     
@@ -353,17 +350,6 @@ class RewardsCfg:
         },
     )
 
-    # 运动时腿部高度
-    feet_height_body = RewTerm(
-        func=mdp.feet_height_body,
-        weight=-0.02,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
-            "target_height": -0.15,
-            "command_name": "base_velocity",
-        }
-    )
-
     # 不期望的接触
     other_undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
@@ -371,48 +357,6 @@ class RewardsCfg:
         params={
             "threshold": 1.0,
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
-        },
-    )
-    
-    # 防止脚绊倒
-    feet_stumble = RewTerm(
-        func=mdp.feet_stumble,
-        weight=-0.05,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-        },
-    )
-    
-    # 限制脚部接触力
-    feet_contact_forces = RewTerm(
-        func=mdp.contact_forces,
-        weight=-0.01,
-        params={
-            "threshold": 150.0,
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-        },
-    )
-
-    # 脚部滑移惩罚
-    feet_slide = RewTerm(
-        func=mdp.feet_slide,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-        },
-    )
-
-    # 步态模式鼓励步态
-    feet_gait = RewTerm(
-        func=mdp.feet_gait,
-        weight=1.0,
-        params={
-            "period": 0.6,
-            "offset": [0.0, 0.5, 0.5, 0.0],  # 对角步态（LF, RF, LH, RH）
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-            "threshold": 0.3,
-            "command_name": "base_velocity",
         },
     )
 
@@ -531,15 +475,15 @@ class RobotPlayEnvCfg(RobotEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 64    # 推理环境数量
-        self.scene.terrain.terrain_generator.num_cols = 10
-        self.scene.terrain.max_init_terrain_level = 10      # 测试最高难度
-        self.scene.terrain.terrain_generator.curriculum = True
+        # self.scene.terrain.terrain_generator.num_cols = 10
+        # self.scene.terrain.max_init_terrain_level = 10
+        # self.scene.terrain.terrain_generator.curriculum = True
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.ranges = mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(1, 1), lin_vel_y=(-0.0, 0.0), ang_vel_z=(-0, 0), 
+            lin_vel_x=(1, 1), lin_vel_y=(-0.0, 0.0), ang_vel_z=(-0, 0),
         )
         self.commands.base_velocity.low_vel_env_lin_x_ranges=(1,1)
-        
+
         # 推理模式下关闭领域随机化
         self.events.add_base_mass = None
         self.events.randomize_rigid_body_com = None
