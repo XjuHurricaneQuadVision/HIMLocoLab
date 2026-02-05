@@ -345,7 +345,7 @@ class RewardsCfg:
         func=mdp.base_height,
         weight=-8.0,
         params={
-            "target_height": 0.18,
+            "target_height": 0.12,
             "sensor_cfg": SceneEntityCfg("base_height_scanner"),
         },
     )
