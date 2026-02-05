@@ -37,13 +37,50 @@ public:
             const auto start = clock::now();
             auto sleepTill = start + dt;
 
+            // Statistics variables
+            int step_count = 0;
+            double total_inference_time = 0.0;
+            double max_inference_time = 0.0;
+            double min_inference_time = 1e9;
+            auto last_print_time = start;
+
             while (policy_thread_running)
             {
+                // Measure inference time
+                auto step_start = clock::now();
                 env->step();
+                auto step_end = clock::now();
+
+                double inference_time_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+
+                // Update statistics
+                total_inference_time += inference_time_ms;
+                max_inference_time = std::max(max_inference_time, inference_time_ms);
+                min_inference_time = std::min(min_inference_time, inference_time_ms);
+                step_count++;
 
                 // Sleep
                 std::this_thread::sleep_until(sleepTill);
                 sleepTill += dt;
+
+                // Print statistics every 1 second
+                auto now = clock::now();
+                double elapsed = std::chrono::duration<double>(now - last_print_time).count();
+                if (elapsed >= 1.0) {
+                    double avg_inference_time = total_inference_time / step_count;
+                    double actual_freq = step_count / elapsed;
+                    double target_freq = 1.0 / env->step_dt;
+
+                    spdlog::info("策略运行频率: {:.1f}/{:.1f} Hz, 平均推理时间={:.2f}ms, 最小推理时间={:.2f}ms, 最大推理时间={:.2f}ms",
+                                 actual_freq, target_freq, avg_inference_time, min_inference_time, max_inference_time);
+
+                    // Reset statistics
+                    step_count = 0;
+                    total_inference_time = 0.0;
+                    max_inference_time = 0.0;
+                    min_inference_time = 1e9;
+                    last_print_time = now;
+                }
             }
         });
     }
