@@ -6,7 +6,11 @@
 #include <vector>
 #include <cassert>
 
-inline std::vector<float> linear_interpolate(float t, const std::vector<float>& ts, const std::vector<std::vector<float>>& ys)
+inline std::vector<float> linear_interpolate(
+    float t, 
+    const std::vector<float>& ts, 
+    const std::vector<std::vector<float>>& ys
+)
 {
     assert(ts.size() == ys.size() && !ys.empty() && ts.size() > 1 && ys[0].size() > 0);
     

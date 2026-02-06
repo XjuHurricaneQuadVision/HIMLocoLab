@@ -377,3 +377,262 @@ def joint_mirror(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, mirror_joint
         )
     reward *= 1 / len(mirror_joints) if len(mirror_joints) > 0 else 0
     return reward
+
+
+"""
+Handstand 任务奖励函数
+"""
+
+
+def handstand_orientation_penalty(
+    env: ManagerBasedRLEnv,
+    target_gravity: list[float] = [-1.0, 0.0, 0.0],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """
+    倒立姿态惩罚：评估机器人重力方向与目标重力方向的偏差
+
+    参考项目中的 _reward_handstand_orientation 函数
+    对于倒立任务，目标重力方向为 [-1, 0, 0]，表示机器人的x轴应该朝下（倒立状态）
+    使用L2距离的平方评估当前姿态与目标姿态的偏差
+
+    Args:
+        env: RL环境
+        target_gravity: 目标重力方向（在机器人坐标系中），倒立时为[-1, 0, 0]
+        asset_cfg: 机器人配置
+
+    Returns:
+        torch.Tensor: 姿态偏差惩罚（越小越好）
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    target_gravity_tensor = torch.tensor(target_gravity, device=env.device, dtype=torch.float32)
+    # 计算当前重力投影与目标重力方向的L2距离平方
+    orientation_error = torch.square(asset.data.projected_gravity_b - target_gravity_tensor).sum(dim=1)
+    return orientation_error
+
+
+def handstand_feet_air_reward(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    front_feet_names: list[str] = ["FL_foot", "FR_foot"],
+    threshold: float = 1.0,
+) -> torch.Tensor:
+    """
+    前脚离地奖励：奖励前脚离开地面（倒立时前脚应该在空中）
+
+    参考项目中的 _reward_handstand_feet_on_air 函数
+    检测指定的前脚是否接触地面，如果都没有接触则给予奖励
+
+    Args:
+        env: RL环境
+        sensor_cfg: 接触传感器配置
+        front_feet_names: 前脚名称列表
+        threshold: 接触力阈值(N)
+
+    Returns:
+        torch.Tensor: 前脚离地奖励(1表示都离地,0表示有接触)
+    """
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    # 找到前脚的body索引
+    front_feet_ids = contact_sensor.find_bodies(front_feet_names)[0]
+
+    # 检测前脚接触力
+    contact_forces = contact_sensor.data.net_forces_w[:, front_feet_ids, :]
+    is_contact = torch.norm(contact_forces, dim=-1) > threshold
+
+    # 如果所有前脚都没有接触地面，奖励为1
+    reward = (~is_contact).float().prod(dim=1)
+    return reward
+
+
+def handstand_feet_height_exp_reward(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    target_height: float = 0.67,
+    front_feet_names: list[str] = ["FL_foot", "FR_foot"],
+) -> torch.Tensor:
+    """
+    前脚高度指数奖励：奖励前脚达到目标高度（倒立时前脚应该抬高）
+
+    参考项目中的 _reward_handstand_feet_height_exp 函数
+    使用指数函数评估前脚高度与目标高度的偏差，偏差越小奖励越高
+
+    Args:
+        env: RL环境
+        asset_cfg: 机器人配置
+        target_height: 目标高度（世界坐标系，单位：米）
+        front_feet_names: 前脚名称列表
+
+    Returns:
+        torch.Tensor: 前脚高度奖励（越接近目标高度奖励越高）
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    # 找到前脚的body索引
+    front_feet_ids = asset.find_bodies(front_feet_names)[0]
+
+    # 获取前脚的世界坐标系高度
+    feet_height = asset.data.body_pos_w[:, front_feet_ids, 2]
+
+    # 计算高度误差的和
+    height_error = torch.abs(feet_height - target_height).sum(dim=1)
+
+    # 使用指数函数奖励
+    reward = torch.exp(-height_error * 10)
+    return reward
+
+
+def handstand_rear_feet_contact_reward(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    rear_feet_names: list[str] = ["RL_foot", "RR_foot"],
+    threshold: float = 1.0,
+    handstand_progress_threshold: float = 0.70,
+) -> torch.Tensor:
+    """
+    后脚单脚接触奖励：奖励后脚单脚接触地面（倒立时后脚是支撑点）
+
+    参考项目中的 _reward_contact 函数
+    只有当倒立进度达到一定程度时才给予奖励，鼓励高级平衡技巧
+
+    Args:
+        env: RL环境
+        sensor_cfg: 接触传感器配置
+        rear_feet_names: 后脚名称列表
+        threshold: 接触力阈值(N)
+        handstand_progress_threshold: 倒立进度阈值(需要在env中计算)
+
+    Returns:
+        torch.Tensor: 后脚单脚接触奖励
+    """
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    # 找到后脚的body索引
+    rear_feet_ids = contact_sensor.find_bodies(rear_feet_names)[0]
+
+    # 检测后脚z方向接触力
+    contact_forces_z = contact_sensor.data.net_forces_w[:, rear_feet_ids, 2]
+    is_contact = contact_forces_z > threshold
+
+    # 奖励只有一只后脚接触（高级平衡）
+    reward = (torch.sum(is_contact, dim=1) == 1).float()
+
+    # 注意：这里简化了handstand progress的判断，完整实现需要在env中跟踪倒立进度
+    # 参考项目中使用 rew_hanstand>0.70 作为条件
+    return reward
+
+
+def handstand_base_height_exp_reward(
+    env: ManagerBasedRLEnv,
+    target_height: float = 0.52,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+    """
+    倒立机身高度指数奖励：奖励机身达到倒立时的目标高度
+
+    参考项目中的 _reward_base_height 函数
+    倒立时机身应该比正常行走时更高(约0.52m vs 0.3m)
+
+    Args:
+        env: RL环境
+        target_height: 目标高度（米）
+        asset_cfg: 机器人配置
+        sensor_cfg: 地形传感器配置（可选）
+
+    Returns:
+        torch.Tensor: 机身高度奖励
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+
+    if sensor_cfg is not None:
+        sensor: RayCaster = env.scene[sensor_cfg.name]
+        # 使用传感器调整目标高度
+        ray_hits = sensor.data.ray_hits_w[..., 2]
+        valid_mask = ~torch.isnan(ray_hits) & ~torch.isinf(ray_hits) & (torch.abs(ray_hits) < 1e6)
+        ray_hits_masked = torch.where(valid_mask, ray_hits, torch.tensor(float('nan'), device=ray_hits.device))
+        adjusted_heights = torch.nanmean(ray_hits_masked, dim=1)
+        all_invalid_mask = torch.isnan(adjusted_heights)
+        if all_invalid_mask.any():
+            adjusted_heights[all_invalid_mask] = asset.data.root_link_pos_w[all_invalid_mask, 2] - target_height
+        base_height = asset.data.root_pos_w[:, 2] - adjusted_heights
+    else:
+        # 平坦地形直接使用世界坐标系高度
+        base_height = asset.data.root_pos_w[:, 2]
+
+    # 计算高度误差
+    height_error = torch.abs(base_height - target_height)
+
+    # 使用指数函数奖励
+    reward = torch.exp(-height_error * 5)
+    return reward
+
+
+def handstand_alive_reward(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """
+    存活奖励：鼓励机器人保持倒立状态不倒下
+
+    参考项目中的 _reward_alive 函数
+    简单地给予恒定的正奖励,配合终止条件(base接触地面)来鼓励长时间保持倒立
+
+    Args:
+        env: RL环境
+
+    Returns:
+        torch.Tensor: 固定值1.0的存活奖励
+    """
+    return torch.ones(env.num_envs, device=env.device, dtype=torch.float32)
+
+
+def handstand_default_hip_pos_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    hip_joint_ids: list[int] = [0, 3, 6, 9],  # FL, FR, RL, RR hip joints
+) -> torch.Tensor:
+    """
+    髋关节偏离惩罚：惩罚髋关节偏离零位
+
+    参考项目中的 _reward_default_hip_pos 函数
+    保持髋关节接近零位有助于倒立时的稳定性
+
+    Args:
+        env: RL环境
+        asset_cfg: 机器人配置
+        hip_joint_ids: 髋关节索引列表
+
+    Returns:
+        torch.Tensor: 髋关节偏离惩罚
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    # 计算所有髋关节绝对偏离量的和
+    joint_diff = torch.sum(torch.abs(asset.data.joint_pos[:, hip_joint_ids]), dim=1)
+    return joint_diff
+
+
+def handstand_symmetric_joints_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """
+    关节对称性惩罚：惩罚左右腿关节不对称
+
+    参考项目中的 _reward_symmetric_joints 函数
+    保持左右腿对称有助于倒立的稳定性
+
+    Args:
+        env: RL环境
+        asset_cfg: 机器人配置
+
+    Returns:
+        torch.Tensor: 关节对称性惩罚
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    # 将12个关节重新组织为 (num_envs, 4, 3)，分别对应四条腿
+    dof = asset.data.joint_pos.clone().view(env.num_envs, 4, 3)
+
+    # 右侧髋关节乘以-1以匹配左侧的符号
+    dof[:, 1, 0] *= -1  # FR hip
+    dof[:, 3, 0] *= -1  # RR hip
+
+    # 计算前左腿和前右腿的差异
+    err = torch.sum(torch.abs(dof[:, 0, :] - dof[:, 1, :]), dim=1)
+
+    return err
