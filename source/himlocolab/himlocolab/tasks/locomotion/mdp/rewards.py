@@ -392,17 +392,8 @@ def handstand_orientation_penalty(
     """
     倒立姿态惩罚：评估机器人重力方向与目标重力方向的偏差
 
-    参考项目中的 _reward_handstand_orientation 函数
-    对于倒立任务，目标重力方向为 [-1, 0, 0]，表示机器人的x轴应该朝下（倒立状态）
+    对于倒立任务，目标重力方向为 [-1, 0, 0],表示机器人的x轴应该朝下(倒立状态)
     使用L2距离的平方评估当前姿态与目标姿态的偏差
-
-    Args:
-        env: RL环境
-        target_gravity: 目标重力方向（在机器人坐标系中），倒立时为[-1, 0, 0]
-        asset_cfg: 机器人配置
-
-    Returns:
-        torch.Tensor: 姿态偏差惩罚（越小越好）
     """
     asset: RigidObject = env.scene[asset_cfg.name]
     target_gravity_tensor = torch.tensor(target_gravity, device=env.device, dtype=torch.float32)
@@ -419,18 +410,7 @@ def handstand_feet_air_reward(
 ) -> torch.Tensor:
     """
     前脚离地奖励：奖励前脚离开地面（倒立时前脚应该在空中）
-
-    参考项目中的 _reward_handstand_feet_on_air 函数
     检测指定的前脚是否接触地面，如果都没有接触则给予奖励
-
-    Args:
-        env: RL环境
-        sensor_cfg: 接触传感器配置
-        front_feet_names: 前脚名称列表
-        threshold: 接触力阈值(N)
-
-    Returns:
-        torch.Tensor: 前脚离地奖励(1表示都离地,0表示有接触)
     """
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     # 找到前脚的body索引
@@ -452,19 +432,8 @@ def handstand_feet_height_exp_reward(
     front_feet_names: list[str] = ["FL_foot", "FR_foot"],
 ) -> torch.Tensor:
     """
-    前脚高度指数奖励：奖励前脚达到目标高度（倒立时前脚应该抬高）
-
-    参考项目中的 _reward_handstand_feet_height_exp 函数
+    前脚高度指数奖励
     使用指数函数评估前脚高度与目标高度的偏差，偏差越小奖励越高
-
-    Args:
-        env: RL环境
-        asset_cfg: 机器人配置
-        target_height: 目标高度（世界坐标系，单位：米）
-        front_feet_names: 前脚名称列表
-
-    Returns:
-        torch.Tensor: 前脚高度奖励（越接近目标高度奖励越高）
     """
     asset: RigidObject = env.scene[asset_cfg.name]
     # 找到前脚的body索引
@@ -489,20 +458,8 @@ def handstand_rear_feet_contact_reward(
     handstand_progress_threshold: float = 0.70,
 ) -> torch.Tensor:
     """
-    后脚单脚接触奖励：奖励后脚单脚接触地面（倒立时后脚是支撑点）
-
-    参考项目中的 _reward_contact 函数
+    后脚单脚接触奖励
     只有当倒立进度达到一定程度时才给予奖励，鼓励高级平衡技巧
-
-    Args:
-        env: RL环境
-        sensor_cfg: 接触传感器配置
-        rear_feet_names: 后脚名称列表
-        threshold: 接触力阈值(N)
-        handstand_progress_threshold: 倒立进度阈值(需要在env中计算)
-
-    Returns:
-        torch.Tensor: 后脚单脚接触奖励
     """
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     # 找到后脚的body索引
@@ -512,11 +469,9 @@ def handstand_rear_feet_contact_reward(
     contact_forces_z = contact_sensor.data.net_forces_w[:, rear_feet_ids, 2]
     is_contact = contact_forces_z > threshold
 
-    # 奖励只有一只后脚接触（高级平衡）
+    # 奖励只有一只后脚接触
     reward = (torch.sum(is_contact, dim=1) == 1).float()
 
-    # 注意：这里简化了handstand progress的判断，完整实现需要在env中跟踪倒立进度
-    # 参考项目中使用 rew_hanstand>0.70 作为条件
     return reward
 
 
@@ -528,18 +483,6 @@ def handstand_base_height_exp_reward(
 ) -> torch.Tensor:
     """
     倒立机身高度指数奖励：奖励机身达到倒立时的目标高度
-
-    参考项目中的 _reward_base_height 函数
-    倒立时机身应该比正常行走时更高(约0.52m vs 0.3m)
-
-    Args:
-        env: RL环境
-        target_height: 目标高度（米）
-        asset_cfg: 机器人配置
-        sensor_cfg: 地形传感器配置（可选）
-
-    Returns:
-        torch.Tensor: 机身高度奖励
     """
     asset: RigidObject = env.scene[asset_cfg.name]
 

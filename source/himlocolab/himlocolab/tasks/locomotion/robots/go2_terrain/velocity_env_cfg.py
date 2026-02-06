@@ -360,6 +360,35 @@ class RewardsCfg:
         }
     )
 
+    # 不期望的接触
+    other_undesired_contacts = RewTerm(
+        func=mdp.undesired_contacts,
+        weight=-2.0,
+        params={
+            "threshold": 1.0,
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
+        },
+    )
+
+    # 惩罚足端绊倒
+    feet_stumble = RewTerm(
+        func=mdp.feet_stumble,
+        weight=-0.01,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+        },
+    )
+
+    # 惩罚足端过度滑动
+    feet_slide = RewTerm(
+        func=mdp.feet_slide,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+        },
+    )
+
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
