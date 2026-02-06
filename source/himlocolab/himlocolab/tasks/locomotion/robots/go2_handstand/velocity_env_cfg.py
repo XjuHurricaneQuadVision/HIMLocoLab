@@ -371,9 +371,9 @@ class RewardsCfg:
         },
     )
 
-    # 存活奖励,每一步都给予恒定奖励
+    # 存活奖励
     alive = RewTerm(
-        func=mdp.handstand_alive_reward,
+        func=mdp.is_alive,
         weight=1.0,
     )
 

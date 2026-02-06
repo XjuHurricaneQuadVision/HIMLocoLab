@@ -391,7 +391,6 @@ def handstand_orientation_penalty(
 ) -> torch.Tensor:
     """
     倒立姿态惩罚：评估机器人重力方向与目标重力方向的偏差
-
     对于倒立任务，目标重力方向为 [-1, 0, 0],表示机器人的x轴应该朝下(倒立状态)
     使用L2距离的平方评估当前姿态与目标姿态的偏差
     """
@@ -509,40 +508,13 @@ def handstand_base_height_exp_reward(
     return reward
 
 
-def handstand_alive_reward(env: ManagerBasedRLEnv) -> torch.Tensor:
-    """
-    存活奖励：鼓励机器人保持倒立状态不倒下
-
-    参考项目中的 _reward_alive 函数
-    简单地给予恒定的正奖励,配合终止条件(base接触地面)来鼓励长时间保持倒立
-
-    Args:
-        env: RL环境
-
-    Returns:
-        torch.Tensor: 固定值1.0的存活奖励
-    """
-    return torch.ones(env.num_envs, device=env.device, dtype=torch.float32)
-
-
 def handstand_default_hip_pos_penalty(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     hip_joint_ids: list[int] = [0, 3, 6, 9],  # FL, FR, RL, RR hip joints
 ) -> torch.Tensor:
     """
-    髋关节偏离惩罚：惩罚髋关节偏离零位
-
-    参考项目中的 _reward_default_hip_pos 函数
-    保持髋关节接近零位有助于倒立时的稳定性
-
-    Args:
-        env: RL环境
-        asset_cfg: 机器人配置
-        hip_joint_ids: 髋关节索引列表
-
-    Returns:
-        torch.Tensor: 髋关节偏离惩罚
+    髋关节偏离惩罚,惩罚髋关节偏离零位,保持髋关节接近零位有助于倒立时的稳定性
     """
     asset: Articulation = env.scene[asset_cfg.name]
     # 计算所有髋关节绝对偏离量的和
@@ -555,17 +527,7 @@ def handstand_symmetric_joints_penalty(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """
-    关节对称性惩罚：惩罚左右腿关节不对称
-
-    参考项目中的 _reward_symmetric_joints 函数
-    保持左右腿对称有助于倒立的稳定性
-
-    Args:
-        env: RL环境
-        asset_cfg: 机器人配置
-
-    Returns:
-        torch.Tensor: 关节对称性惩罚
+    关节对称性惩罚,保持左右腿对称有助于倒立的稳定性
     """
     asset: Articulation = env.scene[asset_cfg.name]
     # 将12个关节重新组织为 (num_envs, 4, 3)，分别对应四条腿
