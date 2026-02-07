@@ -95,7 +95,7 @@ class RobotSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",  # "平坦：plane", "程序化（混合地形）：generator"
         terrain_generator=COBBLESTONE_ROAD_CFG,  # None, COBBLESTONE_ROAD_CFG
-        max_init_terrain_level=5,   # 初始化最大难度级别    ->  机器人初始时只在难度 0 - 5 级的地形上训练
+        max_init_terrain_level=2,   # 初始化最大难度级别
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
             friction_combine_mode="multiply",
@@ -311,30 +311,32 @@ class ObservationsCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
+    # 存活奖励
+    is_alive = RewTerm(func=mdp.is_alive, weight=0.5)
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.5)   # 保持机身水平
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.5)    # 惩罚翻滚/俯仰
-    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)  # 惩罚关节加速度
+    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-1e-7)  # 惩罚关节加速度
     energy = RewTerm(func=mdp.energy, weight=-2e-5)   # 节能
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)    # 惩罚动作变化率
-    smoothness = RewTerm(func=mdp.smoothness, weight=-0.01)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.005)    # 惩罚动作变化率
+    smoothness = RewTerm(func=mdp.smoothness, weight=-0.005)
 
     # 跟踪线速度
     track_lin_vel_xy = RewTerm(
-        func=mdp.track_lin_vel_xy_exp, 
-        weight=1.5, 
+        func=mdp.track_lin_vel_xy_exp,
+        weight=2.5,
         params={
-            "command_name": "base_velocity", 
+            "command_name": "base_velocity",
             "std": math.sqrt(0.25)
         },
     )
 
     # 跟踪角速度
     track_ang_vel_z = RewTerm(
-        func=mdp.track_ang_vel_z_exp, 
-        weight=0.5, 
+        func=mdp.track_ang_vel_z_exp,
+        weight=1.0,
         params={
-            "command_name": "base_velocity", 
+            "command_name": "base_velocity",
             "std": math.sqrt(0.25)
         },
     )
@@ -386,6 +388,17 @@ class RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+        },
+    )
+
+    # 鼓励足端有合理的腾空时间
+    feet_air_time = RewTerm(
+        func=mdp.feet_air_time,
+        weight=0.5,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+            "command_name": "base_velocity",
+            "threshold": 0.4,
         },
     )
 
