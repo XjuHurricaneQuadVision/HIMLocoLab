@@ -311,8 +311,6 @@ class ObservationsCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    # 存活奖励
-    is_alive = RewTerm(func=mdp.is_alive, weight=0.5)
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
     base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.5)   # 保持机身水平
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.5)    # 惩罚翻滚/俯仰
@@ -343,8 +341,8 @@ class RewardsCfg:
     
     # 保持机身高度
     base_height_l2 = RewTerm(
-        func=mdp.base_height, 
-        weight=-2.0, 
+        func=mdp.base_height,
+        weight=-0.5,
         params={
             "target_height": 0.3,
             "sensor_cfg": SceneEntityCfg("base_height_scanner"),
@@ -354,7 +352,7 @@ class RewardsCfg:
     # 运动抬腿高度
     feet_height_body = RewTerm(
         func=mdp.feet_height_body,
-        weight=-0.01,
+        weight=-0.005,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
             "target_height": -0.2,
@@ -394,11 +392,11 @@ class RewardsCfg:
     # 鼓励足端有合理的腾空时间
     feet_air_time = RewTerm(
         func=mdp.feet_air_time,
-        weight=0.5,
+        weight=0.25,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
             "command_name": "base_velocity",
-            "threshold": 0.4,
+            "threshold": 0.2,  # 从0.4降到0.2，更容易达到
         },
     )
 
