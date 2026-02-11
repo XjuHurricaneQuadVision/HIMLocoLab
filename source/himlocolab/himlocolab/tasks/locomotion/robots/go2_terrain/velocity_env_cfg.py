@@ -153,8 +153,8 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-            "static_friction_range": (0.3, 1.5),
-            "dynamic_friction_range": (0.3, 1.5),
+            "static_friction_range": (0.2, 1.25),
+            "dynamic_friction_range": (0.2, 1.25),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,  # 摩擦配置种类数量
         },
@@ -166,7 +166,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "mass_distribution_params": (-2.0, 4.0),
+            "mass_distribution_params": (-1.0, 2.0),
             "operation": "add",
         },
     )
@@ -177,7 +177,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "com_range": {"x": (-0.08, 0.08), "y": (-0.08, 0.08), "z": (-0.06, 0.06)},
+            "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.05, 0.05)},
         },
     )
 
@@ -219,8 +219,8 @@ class EventCfg:
         interval_range_s=(0.02, 0.02),  # 每 0.02s 每步
         params={
             "period_step": 8,   # 每 8 步施加一次力
-            "force_range": (-60.0, 60.0),
-            "torque_range": (-6.0, 6.0),
+            "force_range": (-30.0, 30.0),
+            "torque_range": (-0.0, 0.0),
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
         },
     )
@@ -229,9 +229,9 @@ class EventCfg:
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(8.0, 8.0),  # 每 8s 推一次
+        interval_range_s=(16.0, 16.0),  # 每 8s 推一次
         params={
-            "velocity_range": {"x": (-1.5, 1.5), "y": (-1.5, 1.5)},
+            "velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)},
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
         },
     )
@@ -312,17 +312,17 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
-    base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.5)   # 保持机身水平
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.5)    # 惩罚翻滚/俯仰
-    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-1e-7)  # 惩罚关节加速度
+    base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)   # 保持机身水平
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.2)    # 惩罚翻滚/俯仰
+    joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)  # 惩罚关节加速度
     energy = RewTerm(func=mdp.energy, weight=-2e-5)   # 节能
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.005)    # 惩罚动作变化率
-    smoothness = RewTerm(func=mdp.smoothness, weight=-0.005)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)    # 惩罚动作变化率
+    smoothness = RewTerm(func=mdp.smoothness, weight=-0.01)
 
     # 跟踪线速度
     track_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_exp,
-        weight=2.5,
+        weight=1.0,
         params={
             "command_name": "base_velocity",
             "std": math.sqrt(0.25)
@@ -332,7 +332,7 @@ class RewardsCfg:
     # 跟踪角速度
     track_ang_vel_z = RewTerm(
         func=mdp.track_ang_vel_z_exp,
-        weight=1.0,
+        weight=0.5,
         params={
             "command_name": "base_velocity",
             "std": math.sqrt(0.25)
@@ -342,7 +342,7 @@ class RewardsCfg:
     # 保持机身高度
     base_height_l2 = RewTerm(
         func=mdp.base_height,
-        weight=-0.5,
+        weight=-1.0,
         params={
             "target_height": 0.3,
             "sensor_cfg": SceneEntityCfg("base_height_scanner"),
@@ -352,7 +352,7 @@ class RewardsCfg:
     # 运动抬腿高度
     feet_height_body = RewTerm(
         func=mdp.feet_height_body,
-        weight=-0.005,
+        weight=-0.01,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
             "target_height": -0.2,
@@ -360,45 +360,7 @@ class RewardsCfg:
         }
     )
 
-    # 不期望的接触
-    other_undesired_contacts = RewTerm(
-        func=mdp.undesired_contacts,
-        weight=-2.0,
-        params={
-            "threshold": 1.0,
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_hip", ".*_thigh", ".*_calf"]),
-        },
-    )
 
-    # 惩罚足端绊倒
-    feet_stumble = RewTerm(
-        func=mdp.feet_stumble,
-        weight=-0.01,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-        },
-    )
-
-    # 惩罚足端过度滑动
-    feet_slide = RewTerm(
-        func=mdp.feet_slide,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-        },
-    )
-
-    # 鼓励足端有合理的腾空时间
-    feet_air_time = RewTerm(
-        func=mdp.feet_air_time,
-        weight=0.25,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-            "command_name": "base_velocity",
-            "threshold": 0.2,
-        },
-    )
 
 @configclass
 class TerminationsCfg:
