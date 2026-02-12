@@ -360,6 +360,15 @@ class RewardsCfg:
         }
     )
 
+    # 鼓励步态对称性
+    air_time_variance_penalty = RewTerm(
+        func=mdp.air_time_variance_penalty,
+        weight=-0.5,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+        },
+    )
+
     # 静止站立奖励
     stand_still = RewTerm(
         func=mdp.stand_still,
