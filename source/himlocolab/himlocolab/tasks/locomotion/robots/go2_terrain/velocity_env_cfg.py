@@ -246,7 +246,7 @@ class CommandsCfg:
         debug_vis=True, 
         heading_command=True,   # 包含朝向指令
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1, 1), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-2.0, 2.0), heading=(-math.pi, math.pi)
+            lin_vel_x=(-2, 2), lin_vel_y=(-1.5, 1.5), ang_vel_z=(-2.0, 2.0), heading=(-math.pi, math.pi)
         ),
         heading_control_stiffness=0.5,  # 朝向控制的刚度
         curriculums_limit_ranges=(-2, 2),
@@ -312,8 +312,8 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     base_linear_velocity = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)  # 禁止上下跳跃
-    base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)   # 保持机身水平
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.2)    # 惩罚翻滚/俯仰
+    base_angular_velocity = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.5)   # 保持机身水平
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-0.5)    # 惩罚翻滚/俯仰
     joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)  # 惩罚关节加速度
     energy = RewTerm(func=mdp.energy, weight=-2e-5)   # 节能
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)    # 惩罚动作变化率
@@ -322,7 +322,7 @@ class RewardsCfg:
     # 跟踪线速度
     track_lin_vel_xy = RewTerm(
         func=mdp.track_lin_vel_xy_exp,
-        weight=1.0,
+        weight=1.5,
         params={
             "command_name": "base_velocity",
             "std": math.sqrt(0.25)
@@ -358,6 +358,18 @@ class RewardsCfg:
             "target_height": -0.2,
             "command_name": "base_velocity",
         }
+    )
+
+    feet_gait = RewTerm(
+        func=mdp.feet_gait,
+        weight=1.0,
+        params={
+            "period": 0.5,  
+            "offset": [0.0, 0.5, 0.5, 0.0],  # （LF, RF, LH, RH）
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+            "threshold": 0.5,
+            "command_name": "base_velocity",
+        },
     )
 
 
