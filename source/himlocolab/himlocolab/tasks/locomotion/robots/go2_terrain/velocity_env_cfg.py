@@ -360,18 +360,6 @@ class RewardsCfg:
         }
     )
 
-    feet_gait = RewTerm(
-        func=mdp.feet_gait,
-        weight=1.0,
-        params={
-            "period": 0.5,
-            "offset": [0.0, 0.5, 0.5, 0.0],  # （LF, RF, LH, RH）
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
-            "threshold": 0.5,
-            "command_name": "base_velocity",
-        },
-    )
-
     # 静止站立奖励
     stand_still = RewTerm(
         func=mdp.stand_still,
